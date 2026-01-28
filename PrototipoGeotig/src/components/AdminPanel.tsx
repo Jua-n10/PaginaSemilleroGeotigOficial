@@ -37,7 +37,7 @@ import emailjs from "@emailjs/browser";
 // Configuración EmailJS
 const SERVICE_ID = "service_37lpii8";
 const TEMPLATE_ID_BIENVENIDA = "template_2bae6in";
-const TEMPLATE_ID_RECHAZO = "template_rechazo"; // Asegúrate de crear este template
+const TEMPLATE_ID_RECHAZO = "template_vc220xa";
 const PUBLIC_KEY = "DgX-I2W97YTL57c6K";
 
 interface AdminPanelProps {
