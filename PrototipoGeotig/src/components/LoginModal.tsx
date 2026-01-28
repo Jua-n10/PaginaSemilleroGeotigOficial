@@ -1,98 +1,172 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent } from './ui/card';
-import { LogIn, User, Lock, X, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
-import angeloRobot from 'figma:asset/0a47a596dc809b83cc73cb9ecf830467255dfd5b.png';
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "./ui/card";
+import { LogIn, User, Lock, X, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner@2.0.3";
+import angeloRobot from "figma:asset/0a47a596dc809b83cc73cb9ecf830467255dfd5b.png";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firabase"; // ajusta la ruta si tu LoginModal está en otra carpeta
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (role: "admin" | "monitor" | "user") => void;
 }
 
-export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
+export function LoginModal({
+  isOpen,
+  onClose,
+  onLoginSuccess,
+}: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
+    username: "",
+    password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
 
   // Cerrar modal con tecla ESC
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
   // Prevenir scroll cuando el modal está abierto
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validaciones
     if (!formData.username || !formData.password) {
-      toast.error('Por favor completa todos los campos');
+      toast.error("Por favor completa todos los campos");
       return;
     }
 
     if (formData.username.length < 3) {
-      toast.error('El usuario debe tener al menos 3 caracteres');
+      toast.error("El usuario debe tener al menos 3 caracteres");
       return;
     }
 
     if (formData.password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres');
+      toast.error("La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
     setIsLoading(true);
 
     // Simulación de autenticación (en producción conectar con backend)
+
+    /*
     setTimeout(() => {
       // Validación demo
       // Admin (Profesora): admin / geotig2024
       // Monitor: monitor / monitor2024
-      if (formData.username === 'admin' && formData.password === 'geotig2024') {
-        toast.success('¡Bienvenida Profesora! Accediendo al panel de administración...');
-        localStorage.setItem('geotig_user', formData.username);
-        localStorage.setItem('geotig_role', 'admin');
-        localStorage.setItem('geotig_login_time', new Date().toISOString());
-        
+      if (formData.username === "admin" && formData.password === "geotig2024") {
+        toast.success(
+          "¡Bienvenida Profesora! Accediendo al panel de administración...",
+        );
+        localStorage.setItem("geotig_user", formData.username);
+        localStorage.setItem("geotig_role", "admin");
+        localStorage.setItem("geotig_login_time", new Date().toISOString());
+
         // Limpiar formulario y cerrar
-        setFormData({ username: '', password: '' });
+        setFormData({ username: "", password: "" });
         onClose();
         if (onLoginSuccess) onLoginSuccess();
-      } else if (formData.username === 'monitor' && formData.password === 'monitor2024') {
-        toast.success('¡Bienvenido Monitor! Accediendo al panel de gestión...');
-        localStorage.setItem('geotig_user', formData.username);
-        localStorage.setItem('geotig_role', 'monitor');
-        localStorage.setItem('geotig_login_time', new Date().toISOString());
-        
+      } else if (
+        formData.username === "monitor" &&
+        formData.password === "monitor2024"
+      ) {
+        toast.success("¡Bienvenido Monitor! Accediendo al panel de gestión...");
+        localStorage.setItem("geotig_user", formData.username);
+        localStorage.setItem("geotig_role", "monitor");
+        localStorage.setItem("geotig_login_time", new Date().toISOString());
+
         // Limpiar formulario y cerrar
-        setFormData({ username: '', password: '' });
+        setFormData({ username: "", password: "" });
         onClose();
         if (onLoginSuccess) onLoginSuccess();
       } else {
-        toast.error('Usuario o contraseña incorrectos');
+        toast.error("Usuario o contraseña incorrectos");
       }
       setIsLoading(false);
     }, 1000);
+    */
+
+    // Autenticación con Firebase
+
+    try {
+      const userInput = formData.username.trim().toLowerCase();
+
+      // ✅ Mapeo para manteneT USUARIO como "admin / monitor"
+      const email =
+        userInput === "admin"
+          ? "admin@geotig.com"
+          : userInput === "monitor"
+            ? "monitor@geotig.com"
+            : userInput; // si ya escriben un email, lo usa tal cual
+
+      if (!email.includes("@")) {
+        toast.error("Escribe 'admin', 'monitor' o un correo válido");
+        return;
+      }
+
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        email,
+        formData.password,
+      );
+
+      // ✅ Login OK
+      const role =
+        email === "admin@geotig.com"
+          ? "admin"
+          : email === "monitor@geotig.com"
+            ? "monitor"
+            : "user";
+
+      localStorage.setItem("geotig_uid", cred.user.uid);
+      localStorage.setItem("geotig_email", cred.user.email ?? "");
+      localStorage.setItem("geotig_role", role);
+      localStorage.setItem("geotig_login_time", new Date().toISOString());
+
+      setFormData({ username: "", password: "" });
+      onClose();
+      onLoginSuccess?.(role);
+    } catch (err: any) {
+      const code = err?.code as string | undefined;
+
+      if (
+        code === "auth/invalid-credential" ||
+        code === "auth/wrong-password"
+      ) {
+        toast.error("Usuario o contraseña incorrectos");
+      } else if (code === "auth/user-not-found") {
+        toast.error("No existe un usuario con ese correo");
+      } else if (code === "auth/too-many-requests") {
+        toast.error("Demasiados intentos. Intenta más tarde.");
+      } else {
+        toast.error("Error iniciando sesión");
+        console.error(err);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +182,7 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Overlay con blur */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
@@ -125,27 +199,28 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
             >
               <X className="w-5 h-5" />
             </button>
-            
+
             {/* Header */}
             <div className="text-center mb-8">
               <div className="w-48 h-48 mx-auto mb-4 flex items-center justify-center">
-                <img 
-                  src={angeloRobot} 
-                  alt="Angelo - Robot GEOTIG" 
+                <img
+                  src={angeloRobot}
+                  alt="Angelo - Robot GEOTIG"
                   className="w-full h-full object-contain mix-blend-multiply"
                 />
               </div>
               <h2 className="text-gray-900 mb-2">Iniciar Sesión</h2>
-              <p className="text-gray-600">
-                Panel administrativo de GEOTIG
-              </p>
+              <p className="text-gray-600">Panel administrativo de GEOTIG</p>
             </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Usuario */}
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Usuario
                 </label>
                 <div className="relative">
@@ -168,7 +243,10 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
 
               {/* Contraseña */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Contraseña
                 </label>
                 <div className="relative">
@@ -176,7 +254,7 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
                     <Lock className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     id="password"
                     name="password"
                     value={formData.password}
@@ -223,17 +301,21 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
             {/* Info adicional */}
             <div className="mt-6 text-center space-y-2">
               <p className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-700">Profesora:</span> <span className="font-mono text-blue-600">admin</span> / <span className="font-mono text-blue-600">geotig2024</span>
+                <span className="font-semibold text-gray-700">Profesora:</span>{" "}
+                <span className="font-mono text-blue-600">admin</span> /{" "}
+                <span className="font-mono text-blue-600">geotig2024</span>
               </p>
               <p className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-700">Monitor:</span> <span className="font-mono text-teal-600">monitor</span> / <span className="font-mono text-teal-600">monitor2024</span>
+                <span className="font-semibold text-gray-700">Monitor:</span>{" "}
+                <span className="font-mono text-teal-600">monitor</span> /{" "}
+                <span className="font-mono text-teal-600">monitor2024</span>
               </p>
             </div>
 
             <div className="mt-4 pt-6 border-t border-gray-200 text-center">
               <p className="text-sm text-gray-600">
-                ¿Olvidaste tu contraseña?{' '}
-                <button 
+                ¿Olvidaste tu contraseña?{" "}
+                <button
                   onClick={onClose}
                   className="text-teal-600 hover:underline"
                 >

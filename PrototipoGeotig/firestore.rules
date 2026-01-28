@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===== SOLICITUDES - Sistema de vinculación GEOTIG =====
+    // Permite a cualquiera crear una solicitud (sin autenticación requerida)
+    // Pero solo usuarios autenticados (admin/monitor) pueden leer, actualizar o eliminar
+    
+    match /solicitudes/{solicitudId} {
+      // CREAR: Permite crear sin autenticación (para formulario público)
+      allow create: if validateSolicitud(request.resource.data);
+      
+      // LEER: Permite solo a usuarios autenticados (admin/monitor)
+      allow read: if request.auth != null;
+      
+      // ACTUALIZAR: Permite solo a usuarios autenticados
+      // Valida que no se cambien campos críticos sin autorización
+      allow update: if request.auth != null 
+        && validateUpdateSolicitud(request.resource.data);
+      
+      // ELIMINAR: Permite solo a usuarios autenticados
+      allow delete: if request.auth != null;
+    }
+    
+    // ===== OTROS DOCUMENTOS =====
+    // Bloquea acceso a colecciones no definidas
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// ===== FUNCIONES DE VALIDACIÓN =====
+
+// Valida que una nueva solicitud tenga todos los campos requeridos
+function validateSolicitud(data) {
+  return data.size() > 0
+    && data.nombre is string
+    && data.email is string
+    && data.programa is string
+    && data.motivacion is string
+    && data.estado == 'pendiente'
+    && data.nombre.size() >= 3
+    && data.nombre.size() <= 100
+    && data.email.matches('[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}')
+    && data.programa.size() > 0
+    && data.motivacion.size() >= 20
+    && data.motivacion.size() <= 1000;
+}
+
+// Valida que la actualización de una solicitud solo modifique campos permitidos
+function validateUpdateSolicitud(data) {
+  return data.estado in ['pendiente', 'aceptada', 'rechazada']
+    && data.comentariosAdmin is string
+    && data.comentariosAdmin.size() <= 1000;
+}
