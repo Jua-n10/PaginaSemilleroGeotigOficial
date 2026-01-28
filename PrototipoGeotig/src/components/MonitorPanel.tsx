@@ -30,6 +30,13 @@ import {
   doc,
 } from "firebase/firestore";
 import { db } from "../firabase";
+import emailjs from "@emailjs/browser";
+
+// Configuración EmailJS
+const SERVICE_ID = "service_37lpii8";
+const TEMPLATE_ID_BIENVENIDA = "template_2bae6in";
+const TEMPLATE_ID_RECHAZO = "template_vc220xa";
+const PUBLIC_KEY = "DgX-I2W97YTL57c6K";
 
 interface MonitorPanelProps {
   onClose: () => void;
@@ -73,7 +80,64 @@ interface Tarea {
   fecha: string;
 }
 
+// Funciones para enviar emails con EmailJS
+async function enviarCorreoBienvenida(
+  solicitud: Solicitud,
+  comentario: string,
+) {
+  const comentarioFinal =
+    comentario?.trim() ||
+    "Pronto recibirás más información sobre nuestras actividades.";
+
+  try {
+    await emailjs.send(
+      SERVICE_ID,
+      TEMPLATE_ID_BIENVENIDA,
+      {
+        to_email: solicitud.email,
+        nombre: solicitud.nombre,
+        programa: solicitud.programa,
+        comentario: comentarioFinal,
+      },
+      { publicKey: PUBLIC_KEY },
+    );
+    console.log("Email de bienvenida enviado a:", solicitud.email);
+  } catch (error) {
+    console.error("Error enviando email de bienvenida:", error);
+    throw error;
+  }
+}
+
+async function enviarCorreoRechazo(solicitud: Solicitud, comentario: string) {
+  const comentarioFinal =
+    comentario?.trim() ||
+    "Puedes solicitar nuevamente en próximas convocatorias.";
+
+  try {
+    await emailjs.send(
+      SERVICE_ID,
+      TEMPLATE_ID_RECHAZO,
+      {
+        to_email: solicitud.email,
+        nombre: solicitud.nombre,
+        programa: solicitud.programa,
+        comentario: comentarioFinal,
+      },
+      { publicKey: PUBLIC_KEY },
+    );
+    console.log("Email de rechazo enviado a:", solicitud.email);
+  } catch (error) {
+    console.error("Error enviando email de rechazo:", error);
+    throw error;
+  }
+}
+
 export function MonitorPanel({ onClose }: MonitorPanelProps) {
+  // Inicializar EmailJS
+  useEffect(() => {
+    emailjs.init({ publicKey: PUBLIC_KEY });
+  }, []);
+
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([
@@ -250,12 +314,17 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
         comentariosAdmin: comentarioSolicitud,
         fechaRevision: new Date(),
       });
-      toast.success("Solicitud aprobada");
+
+      // Enviar email de bienvenida
+      await enviarCorreoBienvenida(solicitudSeleccionada, comentarioSolicitud);
+
+      toast.success("Solicitud aprobada y correo enviado");
       setModalAceptar(false);
       setComentarioSolicitud("");
       setSolicitudSeleccionada(null);
     } catch (error) {
-      toast.error("Error al aprobar solicitud");
+      console.error("Error:", error);
+      toast.error("Error al aprobar solicitud o enviar email");
     }
   };
 
@@ -273,12 +342,17 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
         comentariosAdmin: comentarioSolicitud,
         fechaRevision: new Date(),
       });
-      toast.success("Solicitud rechazada");
+
+      // Enviar email de rechazo
+      await enviarCorreoRechazo(solicitudSeleccionada, comentarioSolicitud);
+
+      toast.success("Solicitud rechazada y correo enviado");
       setModalRechazar(false);
       setComentarioSolicitud("");
       setSolicitudSeleccionada(null);
     } catch (error) {
-      toast.error("Error al rechazar solicitud");
+      console.error("Error:", error);
+      toast.error("Error al rechazar solicitud o enviar email");
     }
   };
 
@@ -775,7 +849,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                               <div className="flex gap-2 pt-2">
                                 <button
                                   onClick={() =>
-                                    handleAprobarSolicitud(solicitud.id)
+                                    handleAprobarSolicitud(solicitud)
                                   }
                                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                                 >
@@ -784,7 +858,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                                 </button>
                                 <button
                                   onClick={() =>
-                                    handleRechazarSolicitud(solicitud.id)
+                                    handleRechazarSolicitud(solicitud)
                                   }
                                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
                                 >
