@@ -353,6 +353,10 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
           <nav className="p-4 space-y-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const pendientesCount =
+                tab.id === "solicitudes"
+                  ? solicitudes.filter((s) => s.estado === "pendiente").length
+                  : 0;
               return (
                 <button
                   key={tab.id}
@@ -364,7 +368,12 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                   }`}
                 >
                   <Icon className="w-5 h-5" />
-                  {tab.label}
+                  <span className="flex-1 text-left">{tab.label}</span>
+                  {pendientesCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                      {pendientesCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
