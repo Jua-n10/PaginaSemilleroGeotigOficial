@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "./ui/card";
 import { LogIn, User, Lock, X, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import angeloRobot from "figma:asset/0a47a596dc809b83cc73cb9ecf830467255dfd5b.png";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firabase"; // ajusta la ruta si tu LoginModal está en otra carpeta
+import { auth } from "../firabase";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -18,31 +17,20 @@ export function LoginModal({
   onLoginSuccess,
 }: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [focused, setFocused] = useState<"username" | "password" | null>(null);
 
-  // Cerrar modal con tecla ESC
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
+      if (e.key === "Escape" && isOpen) onClose();
     };
-
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
-  // Prevenir scroll cuando el modal está abierto
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    document.body.style.overflow = isOpen ? "hidden" : "unset";
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -50,76 +38,28 @@ export function LoginModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validaciones
     if (!formData.username || !formData.password) {
       toast.error("Por favor completa todos los campos");
       return;
     }
-
     if (formData.username.length < 3) {
       toast.error("El usuario debe tener al menos 3 caracteres");
       return;
     }
-
     if (formData.password.length < 6) {
       toast.error("La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
     setIsLoading(true);
-
-    // Simulación de autenticación (en producción conectar con backend)
-
-    /*
-    setTimeout(() => {
-      // Validación demo
-      // Admin (Profesora): admin / geotig2024
-      // Monitor: monitor / monitor2024
-      if (formData.username === "admin" && formData.password === "geotig2024") {
-        toast.success(
-          "¡Bienvenida Profesora! Accediendo al panel de administración...",
-        );
-        localStorage.setItem("geotig_user", formData.username);
-        localStorage.setItem("geotig_role", "admin");
-        localStorage.setItem("geotig_login_time", new Date().toISOString());
-
-        // Limpiar formulario y cerrar
-        setFormData({ username: "", password: "" });
-        onClose();
-        if (onLoginSuccess) onLoginSuccess();
-      } else if (
-        formData.username === "monitor" &&
-        formData.password === "monitor2024"
-      ) {
-        toast.success("¡Bienvenido Monitor! Accediendo al panel de gestión...");
-        localStorage.setItem("geotig_user", formData.username);
-        localStorage.setItem("geotig_role", "monitor");
-        localStorage.setItem("geotig_login_time", new Date().toISOString());
-
-        // Limpiar formulario y cerrar
-        setFormData({ username: "", password: "" });
-        onClose();
-        if (onLoginSuccess) onLoginSuccess();
-      } else {
-        toast.error("Usuario o contraseña incorrectos");
-      }
-      setIsLoading(false);
-    }, 1000);
-    */
-
-    // Autenticación con Firebase
-
     try {
       const userInput = formData.username.trim().toLowerCase();
-
-      // ✅ Mapeo para manteneT USUARIO como "admin / monitor"
       const email =
         userInput === "admin"
           ? "admin@geotig.com"
           : userInput === "monitor"
             ? "monitor@geotig.com"
-            : userInput; // si ya escriben un email, lo usa tal cual
+            : userInput;
 
       if (!email.includes("@")) {
         toast.error("Escribe 'admin', 'monitor' o un correo válido");
@@ -131,8 +71,6 @@ export function LoginModal({
         email,
         formData.password,
       );
-
-      // ✅ Login OK
       const role =
         email === "admin@geotig.com"
           ? "admin"
@@ -150,17 +88,13 @@ export function LoginModal({
       onLoginSuccess?.(role);
     } catch (err: any) {
       const code = err?.code as string | undefined;
-
-      if (
-        code === "auth/invalid-credential" ||
-        code === "auth/wrong-password"
-      ) {
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password")
         toast.error("Usuario o contraseña incorrectos");
-      } else if (code === "auth/user-not-found") {
+      else if (code === "auth/user-not-found")
         toast.error("No existe un usuario con ese correo");
-      } else if (code === "auth/too-many-requests") {
+      else if (code === "auth/too-many-requests")
         toast.error("Demasiados intentos. Intenta más tarde.");
-      } else {
+      else {
         toast.error("Error iniciando sesión");
         console.error(err);
       }
@@ -170,62 +104,280 @@ export function LoginModal({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Si el modal no está abierto, no renderizar nada
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Overlay con blur */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500&display=swap');
 
-      {/* Modal */}
-      <div className="relative z-10 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
-        <Card className="border-2 border-gray-200 shadow-2xl">
-          <CardContent className="p-8">
-            {/* Botón cerrar */}
+        .lm-card {
+          font-family: 'DM Sans', sans-serif;
+          background: linear-gradient(155deg, #0a1628 0%, #0f2744 50%, #0a2218 100%);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 20px;
+        }
+        .lm-title { font-family: 'Syne', sans-serif; }
+
+        .lm-grid {
+          background-image:
+            linear-gradient(rgba(32,178,140,0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(32,178,140,0.1) 1px, transparent 1px);
+          background-size: 28px 28px;
+        }
+
+        .lm-input {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.09);
+          color: #fff;
+          border-radius: 12px;
+          transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+        .lm-input::placeholder { color: rgba(255,255,255,0.2); }
+        .lm-input:focus { outline: none; }
+        .lm-input.lm-focused {
+          background: rgba(255,255,255,0.07);
+          border-color: rgba(32,178,140,0.55);
+          box-shadow: 0 0 0 3px rgba(32,178,140,0.09);
+        }
+
+        .lm-btn {
+          background: linear-gradient(135deg, #0d9488, #1d4ed8);
+          border-radius: 12px;
+          font-family: 'DM Sans', sans-serif;
+          font-weight: 600;
+          transition: transform 0.25s, box-shadow 0.25s, filter 0.25s;
+          position: relative;
+          overflow: hidden;
+        }
+        .lm-btn::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: rgba(255,255,255,0.08);
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        .lm-btn:hover:not(:disabled)::after { opacity: 1; }
+        .lm-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 28px rgba(13,148,136,0.38);
+        }
+        .lm-btn:active:not(:disabled) { transform: translateY(0); }
+        .lm-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .lm-btn-inner { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+        .lm-close {
+          color: rgba(255,255,255,0.3);
+          border-radius: 8px;
+          padding: 5px;
+          transition: color 0.2s, background 0.2s;
+        }
+        .lm-close:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.08); }
+
+        .lm-badge {
+          display: inline-flex; align-items: center; gap: 6px;
+          background: rgba(32,178,140,0.1);
+          border: 1px solid rgba(32,178,140,0.22);
+          color: rgba(32,178,140,0.85);
+          font-family: 'Syne', sans-serif;
+          font-size: 10px; font-weight: 700;
+          letter-spacing: 0.15em; text-transform: uppercase;
+          padding: 4px 12px; border-radius: 99px;
+        }
+
+        .lm-label {
+          font-family: 'Syne', sans-serif;
+          font-size: 10px; font-weight: 700;
+          letter-spacing: 0.12em; text-transform: uppercase;
+          color: rgba(32,178,140,0.65);
+          display: block; margin-bottom: 8px;
+        }
+
+        .lm-icon { color: rgba(255,255,255,0.22); transition: color 0.2s; }
+        .lm-icon.lm-icon-active { color: rgba(32,178,140,0.65); }
+
+        .lm-divider { border-color: rgba(255,255,255,0.07); margin: 20px 0; }
+        .lm-footer { color: rgba(255,255,255,0.28); font-size: 12px; text-align: center; }
+        .lm-footer a, .lm-footer button {
+          color: rgba(32,178,140,0.7);
+          text-decoration: underline; text-underline-offset: 3px;
+          transition: color 0.2s; background: none; border: none; padding: 0; cursor: pointer;
+          font-size: 12px;
+        }
+        .lm-footer a:hover, .lm-footer button:hover { color: rgba(32,178,140,1); }
+
+        .lm-overlay { animation: lmFadeIn 0.2s ease; }
+        .lm-modal { animation: lmPopIn 0.28s cubic-bezier(0.34,1.56,0.64,1); }
+
+        @keyframes lmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes lmPopIn {
+          from { opacity: 0; transform: scale(0.9) translateY(16px); }
+          to   { opacity: 1; transform: scale(1)   translateY(0);    }
+        }
+      `}</style>
+
+      <div
+        className="lm-overlay"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 100,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px",
+          background: "rgba(0,0,0,0.72)",
+          backdropFilter: "blur(14px)",
+        }}
+      >
+        {/* Click fuera */}
+        <div style={{ position: "absolute", inset: 0 }} onClick={onClose} />
+
+        {/* Card */}
+        <div
+          className="lm-modal lm-card"
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "100%",
+            maxWidth: "380px",
+            boxShadow:
+              "0 0 0 1px rgba(32,178,140,0.12), 0 32px 64px rgba(0,0,0,0.65), 0 0 80px rgba(32,178,140,0.05)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Grid BG */}
+          <div
+            className="lm-grid"
+            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+          />
+
+          {/* Orbes */}
+          <div
+            style={{
+              position: "absolute",
+              top: -80,
+              right: -80,
+              width: 220,
+              height: 220,
+              borderRadius: "50%",
+              pointerEvents: "none",
+              background:
+                "radial-gradient(circle, rgba(32,178,140,0.14) 0%, transparent 65%)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: -60,
+              left: -60,
+              width: 180,
+              height: 180,
+              borderRadius: "50%",
+              pointerEvents: "none",
+              background:
+                "radial-gradient(circle, rgba(29,78,216,0.13) 0%, transparent 65%)",
+            }}
+          />
+
+          <div style={{ position: "relative", padding: "36px 32px 28px" }}>
+            {/* Cerrar */}
             <button
+              className="lm-close"
               onClick={onClose}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Cerrar"
+              style={{ position: "absolute", top: 14, right: 14 }}
             >
-              <X className="w-5 h-5" />
+              <X style={{ width: 16, height: 16 }} />
             </button>
 
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="w-48 h-48 mx-auto mb-4 flex items-center justify-center">
+            {/* ── Header ── */}
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <span className="lm-badge" style={{ marginBottom: 18 }}>
+                <span>✦</span> GEOTIG <span>✦</span>
+              </span>
+
+              {/* Angelo */}
+              <div
+                style={{
+                  position: "relative",
+                  width: 108,
+                  height: 108,
+                  margin: "0 auto 18px",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background:
+                      "radial-gradient(circle, rgba(32,178,140,0.22) 0%, transparent 70%)",
+                    filter: "blur(10px)",
+                  }}
+                />
                 <img
                   src={angeloRobot}
-                  alt="Angelo - Robot GEOTIG"
-                  className="w-full h-full object-contain mix-blend-multiply"
+                  alt="Angelo"
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.5))",
+                  }}
                 />
               </div>
-              <h2 className="text-gray-900 mb-2">Iniciar Sesión</h2>
-              <p className="text-gray-600">Panel administrativo de GEOTIG</p>
+
+              <h2
+                className="lm-title"
+                style={{
+                  color: "#fff",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  marginBottom: 4,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Panel Administrativo
+              </h2>
+              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                Semillero de Investigación Geoespacial
+              </p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* ── Formulario ── */}
+            <form
+              onSubmit={handleSubmit}
+              style={{ display: "flex", flexDirection: "column", gap: 16 }}
+            >
               {/* Usuario */}
               <div>
-                <label
-                  htmlFor="username"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
+                <label htmlFor="username" className="lm-label">
                   Usuario
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+                <div
+                  style={{
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 13,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <User
+                      className={`lm-icon ${focused === "username" ? "lm-icon-active" : ""}`}
+                      style={{ width: 15, height: 15 }}
+                    />
                   </div>
                   <input
                     type="text"
@@ -233,8 +385,15 @@ export function LoginModal({
                     name="username"
                     value={formData.username}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
-                    placeholder="Ingresa tu usuario"
+                    onFocus={() => setFocused("username")}
+                    onBlur={() => setFocused(null)}
+                    className={`lm-input ${focused === "username" ? "lm-focused" : ""}`}
+                    style={{
+                      width: "100%",
+                      padding: "11px 14px 11px 38px",
+                      fontSize: 14,
+                    }}
+                    placeholder="admin / monitor"
                     autoComplete="username"
                     required
                   />
@@ -243,15 +402,27 @@ export function LoginModal({
 
               {/* Contraseña */}
               <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
+                <label htmlFor="password" className="lm-label">
                   Contraseña
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                <div
+                  style={{
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 13,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <Lock
+                      className={`lm-icon ${focused === "password" ? "lm-icon-active" : ""}`}
+                      style={{ width: 15, height: 15 }}
+                    />
                   </div>
                   <input
                     type={showPassword ? "text" : "password"}
@@ -259,73 +430,91 @@ export function LoginModal({
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
-                    placeholder="Ingresa tu contraseña"
+                    onFocus={() => setFocused("password")}
+                    onBlur={() => setFocused(null)}
+                    className={`lm-input ${focused === "password" ? "lm-focused" : ""}`}
+                    style={{
+                      width: "100%",
+                      padding: "11px 42px 11px 38px",
+                      fontSize: 14,
+                    }}
+                    placeholder="••••••••"
                     autoComplete="current-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    className="lm-icon"
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 2,
+                    }}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff style={{ width: 15, height: 15 }} />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye style={{ width: 15, height: 15 }} />
                     )}
                   </button>
                 </div>
               </div>
 
-              {/* Botón de envío */}
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-900 to-teal-600 text-white py-3 px-4 rounded-lg hover:from-blue-800 hover:to-teal-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                className="lm-btn"
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  color: "#fff",
+                  fontSize: 14,
+                  border: "none",
+                  cursor: "pointer",
+                  marginTop: 4,
+                }}
               >
-                {isLoading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Iniciando sesión...
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-5 h-5" />
-                    Iniciar Sesión
-                  </>
-                )}
+                <div className="lm-btn-inner">
+                  {isLoading ? (
+                    <>
+                      <div
+                        style={{
+                          width: 16,
+                          height: 16,
+                          border: "2px solid rgba(255,255,255,0.4)",
+                          borderTopColor: "#fff",
+                          borderRadius: "50%",
+                          animation: "spin 0.7s linear infinite",
+                        }}
+                      />
+                      Iniciando sesión...
+                    </>
+                  ) : (
+                    <>
+                      <LogIn style={{ width: 15, height: 15 }} />
+                      Iniciar Sesión
+                    </>
+                  )}
+                </div>
               </button>
             </form>
 
-            {/* Info adicional */}
-            <div className="mt-6 text-center space-y-2">
-              <p className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-700">Profesora:</span>{" "}
-                <span className="font-mono text-blue-600">admin</span> /{" "}
-                <span className="font-mono text-blue-600">geotig2024</span>
-              </p>
-              <p className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-700">Monitor:</span>{" "}
-                <span className="font-mono text-teal-600">monitor</span> /{" "}
-                <span className="font-mono text-teal-600">monitor2024</span>
-              </p>
-            </div>
-
-            <div className="mt-4 pt-6 border-t border-gray-200 text-center">
-              <p className="text-sm text-gray-600">
-                ¿Olvidaste tu contraseña?{" "}
-                <button
-                  onClick={onClose}
-                  className="text-teal-600 hover:underline"
-                >
-                  Contacta al administrador
-                </button>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Footer */}
+            <hr className="lm-divider" />
+            <p className="lm-footer">
+              ¿Olvidaste tu contraseña?{" "}
+              <button onClick={onClose}>Contacta al administrador</button>
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </>
   );
 }

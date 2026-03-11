@@ -70,7 +70,8 @@ interface Miembro {
 
 interface Solicitud {
   id: string;
-  nombre: string;
+  nombres: string; // ✅ actualizado
+  apellidos: string; // ✅ actualizado
   email: string;
   programa: string;
   mensaje: string;
@@ -93,7 +94,7 @@ async function enviarCorreoBienvenida(
       TEMPLATE_ID_BIENVENIDA,
       {
         to_email: solicitud.email,
-        nombre: solicitud.nombre,
+        nombre: `${solicitud.nombres} ${solicitud.apellidos}`, // ✅ actualizado
         programa: solicitud.programa,
         comentario: comentarioFinal,
       },
@@ -117,7 +118,7 @@ async function enviarCorreoRechazo(solicitud: Solicitud, comentario: string) {
       TEMPLATE_ID_RECHAZO,
       {
         to_email: solicitud.email,
-        nombre: solicitud.nombre,
+        nombre: `${solicitud.nombres} ${solicitud.apellidos}`, // ✅ actualizado
         programa: solicitud.programa,
         comentario: comentarioFinal,
       },
@@ -195,7 +196,8 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
         const docData = doc.data();
         return {
           id: doc.id,
-          nombre: docData.nombre || "",
+          nombres: docData.nombres || "", // ✅ actualizado
+          apellidos: docData.apellidos || "", // ✅ actualizado
           email: docData.email || "",
           programa: docData.programa || "",
           mensaje: docData.motivacion || "",
@@ -214,13 +216,11 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
   }, []);
 
   useEffect(() => {
-    // Para que salga solo una vez por sesión del navegador
     const alreadyWelcomed = sessionStorage.getItem("geotig_admin_welcome");
-
     if (!alreadyWelcomed) {
       toast.success(
         "¡Bienvenida Profesora! Has ingresado al Panel Administrativo de GEOTIG 👩‍🏫",
-        { duration: 5000 },
+        { duration: 3000 },
       );
       sessionStorage.setItem("geotig_admin_welcome", "true");
     }
@@ -248,10 +248,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
         comentariosAdmin: comentarioSolicitud,
         fechaRevision: new Date(),
       });
-
-      // Enviar email de bienvenida
       await enviarCorreoBienvenida(solicitudSeleccionada, comentarioSolicitud);
-
       toast.success("Solicitud aprobada y correo enviado");
       setModalAceptar(false);
       setComentarioSolicitud("");
@@ -276,10 +273,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
         comentariosAdmin: comentarioSolicitud,
         fechaRevision: new Date(),
       });
-
-      // Enviar email de rechazo
       await enviarCorreoRechazo(solicitudSeleccionada, comentarioSolicitud);
-
       toast.success("Solicitud rechazada y correo enviado");
       setModalRechazar(false);
       setComentarioSolicitud("");
@@ -553,7 +547,6 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                 </h2>
               </div>
 
-              {/* Agregar nuevo proyecto */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -627,7 +620,6 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                 </CardContent>
               </Card>
 
-              {/* Lista de proyectos */}
               <div className="grid gap-4">
                 {proyectos.map((proyecto) => (
                   <Card
@@ -694,7 +686,6 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
               <h2 className="text-3xl font-bold text-gray-900">
                 Gestión del Equipo
               </h2>
-
               <div className="grid gap-4">
                 {miembros.map((miembro) => (
                   <Card
@@ -741,6 +732,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
               </div>
             </div>
           )}
+
           {/* Solicitudes */}
           {activeTab === "solicitudes" && (
             <div className="space-y-6">
@@ -748,7 +740,6 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                 Solicitudes de Estudiantes
               </h2>
 
-              {/* Submenú de Solicitudes */}
               <div className="flex gap-2 border-b border-gray-200">
                 <button
                   onClick={() => setSolicitudesSubTab("pendientes")}
@@ -785,201 +776,194 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                 </button>
               </div>
 
-              {/* Contenido del Submenú - Pendientes */}
+              {/* Pendientes */}
               {solicitudesSubTab === "pendientes" && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {solicitudes
-                      .filter((s) => s.estado === "pendiente")
-                      .map((solicitud) => (
-                        <Card
-                          key={solicitud.id}
-                          className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500"
-                        >
-                          <CardContent className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-bold text-gray-900">
-                                    {solicitud.nombre}
-                                  </h3>
-                                  <p className="text-teal-600 font-medium text-sm mt-1">
-                                    {solicitud.programa}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
-                                    <Mail className="w-4 h-4" />
-                                    {solicitud.email}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                                    <Calendar className="w-4 h-4" />
-                                    {solicitud.fecha}
-                                  </p>
-                                </div>
-                                <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
-                                  Pendiente
-                                </span>
-                              </div>
-
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-sm text-gray-600 font-medium mb-1">
-                                  Motivación:
+                <div className="grid gap-4">
+                  {solicitudes
+                    .filter((s) => s.estado === "pendiente")
+                    .map((solicitud) => (
+                      <Card
+                        key={solicitud.id}
+                        className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500"
+                      >
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                  {solicitud.nombres} {solicitud.apellidos}{" "}
+                                  {/* ✅ actualizado */}
+                                </h3>
+                                <p className="text-teal-600 font-medium text-sm mt-1">
+                                  {solicitud.programa}
                                 </p>
-                                <p className="text-gray-700">
-                                  {solicitud.mensaje}
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
+                                  <Mail className="w-4 h-4" />
+                                  {solicitud.email}
+                                </p>
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {solicitud.fecha}
                                 </p>
                               </div>
-
-                              <div className="flex gap-2 pt-2">
-                                <button
-                                  onClick={() =>
-                                    handleAprobarSolicitud(solicitud)
-                                  }
-                                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                                >
-                                  <Save className="w-4 h-4" />
-                                  Aprobar
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleRechazarSolicitud(solicitud)
-                                  }
-                                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                                >
-                                  <X className="w-4 h-4" />
-                                  Rechazar
-                                </button>
-                              </div>
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
+                                Pendiente
+                              </span>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    {solicitudes.filter((s) => s.estado === "pendiente")
-                      .length === 0 && (
-                      <Card>
-                        <CardContent className="p-6 text-center text-gray-500">
-                          No hay solicitudes pendientes
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <p className="text-sm text-gray-600 font-medium mb-1">
+                                Motivación:
+                              </p>
+                              <p className="text-gray-700">
+                                {solicitud.mensaje}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                onClick={() =>
+                                  handleAprobarSolicitud(solicitud)
+                                }
+                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <Save className="w-4 h-4" />
+                                Aprobar
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleRechazarSolicitud(solicitud)
+                                }
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <X className="w-4 h-4" />
+                                Rechazar
+                              </button>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                    )}
-                  </div>
+                    ))}
+                  {solicitudes.filter((s) => s.estado === "pendiente")
+                    .length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center text-gray-500">
+                        No hay solicitudes pendientes
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 
-              {/* Contenido del Submenú - Aprobadas */}
+              {/* Aprobadas */}
               {solicitudesSubTab === "aprobadas" && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {solicitudes
-                      .filter((s) => s.estado === "aceptada")
-                      .map((solicitud) => (
-                        <Card
-                          key={solicitud.id}
-                          className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500"
-                        >
-                          <CardContent className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-bold text-gray-900">
-                                    {solicitud.nombre}
-                                  </h3>
-                                  <p className="text-teal-600 font-medium text-sm mt-1">
-                                    {solicitud.programa}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
-                                    <Mail className="w-4 h-4" />
-                                    {solicitud.email}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                                    <Calendar className="w-4 h-4" />
-                                    {solicitud.fecha}
-                                  </p>
-                                </div>
-                                <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
-                                  Aceptada
-                                </span>
-                              </div>
-
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-sm text-gray-600 font-medium mb-1">
-                                  Motivación:
+                <div className="grid gap-4">
+                  {solicitudes
+                    .filter((s) => s.estado === "aceptada")
+                    .map((solicitud) => (
+                      <Card
+                        key={solicitud.id}
+                        className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500"
+                      >
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                  {solicitud.nombres} {solicitud.apellidos}{" "}
+                                  {/* ✅ actualizado */}
+                                </h3>
+                                <p className="text-teal-600 font-medium text-sm mt-1">
+                                  {solicitud.programa}
                                 </p>
-                                <p className="text-gray-700">
-                                  {solicitud.mensaje}
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
+                                  <Mail className="w-4 h-4" />
+                                  {solicitud.email}
+                                </p>
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {solicitud.fecha}
                                 </p>
                               </div>
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                                Aceptada
+                              </span>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    {solicitudes.filter((s) => s.estado === "aceptada")
-                      .length === 0 && (
-                      <Card>
-                        <CardContent className="p-6 text-center text-gray-500">
-                          No hay solicitudes aprobadas
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <p className="text-sm text-gray-600 font-medium mb-1">
+                                Motivación:
+                              </p>
+                              <p className="text-gray-700">
+                                {solicitud.mensaje}
+                              </p>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                    )}
-                  </div>
+                    ))}
+                  {solicitudes.filter((s) => s.estado === "aceptada").length ===
+                    0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center text-gray-500">
+                        No hay solicitudes aprobadas
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 
-              {/* Contenido del Submenú - Rechazadas */}
+              {/* Rechazadas */}
               {solicitudesSubTab === "rechazadas" && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {solicitudes
-                      .filter((s) => s.estado === "rechazada")
-                      .map((solicitud) => (
-                        <Card
-                          key={solicitud.id}
-                          className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500"
-                        >
-                          <CardContent className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-bold text-gray-900">
-                                    {solicitud.nombre}
-                                  </h3>
-                                  <p className="text-teal-600 font-medium text-sm mt-1">
-                                    {solicitud.programa}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
-                                    <Mail className="w-4 h-4" />
-                                    {solicitud.email}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                                    <Calendar className="w-4 h-4" />
-                                    {solicitud.fecha}
-                                  </p>
-                                </div>
-                                <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700">
-                                  Rechazada
-                                </span>
-                              </div>
-
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-sm text-gray-600 font-medium mb-1">
-                                  Motivación:
+                <div className="grid gap-4">
+                  {solicitudes
+                    .filter((s) => s.estado === "rechazada")
+                    .map((solicitud) => (
+                      <Card
+                        key={solicitud.id}
+                        className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500"
+                      >
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                  {solicitud.nombres} {solicitud.apellidos}{" "}
+                                  {/* ✅ actualizado */}
+                                </h3>
+                                <p className="text-teal-600 font-medium text-sm mt-1">
+                                  {solicitud.programa}
                                 </p>
-                                <p className="text-gray-700">
-                                  {solicitud.mensaje}
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
+                                  <Mail className="w-4 h-4" />
+                                  {solicitud.email}
+                                </p>
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {solicitud.fecha}
                                 </p>
                               </div>
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700">
+                                Rechazada
+                              </span>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    {solicitudes.filter((s) => s.estado === "rechazada")
-                      .length === 0 && (
-                      <Card>
-                        <CardContent className="p-6 text-center text-gray-500">
-                          No hay solicitudes rechazadas
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <p className="text-sm text-gray-600 font-medium mb-1">
+                                Motivación:
+                              </p>
+                              <p className="text-gray-700">
+                                {solicitud.mensaje}
+                              </p>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                    )}
-                  </div>
+                    ))}
+                  {solicitudes.filter((s) => s.estado === "rechazada")
+                    .length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center text-gray-500">
+                        No hay solicitudes rechazadas
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
@@ -1042,7 +1026,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
           )}
         </main>
 
-        {/* Modal para comentario al aceptar */}
+        {/* Modal Aceptar */}
         {modalAceptar && (
           <div className="fixed inset-0 z-[200] bg-black bg-opacity-50 flex items-center justify-center">
             <Card className="w-full max-w-md">
@@ -1085,7 +1069,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
           </div>
         )}
 
-        {/* Modal para comentario al rechazar */}
+        {/* Modal Rechazar */}
         {modalRechazar && (
           <div className="fixed inset-0 z-[200] bg-black bg-opacity-50 flex items-center justify-center">
             <Card className="w-full max-w-md">

@@ -9,63 +9,165 @@ import { motion } from "motion/react";
 import { db } from "../firabase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
+// ─────────────────────────────────────────────
+// CONSTANTES
+// ─────────────────────────────────────────────
+
+const TIPOS_IDENTIFICACION = [
+  "Cédula de Ciudadanía",
+  "Tarjeta de Identidad",
+  "Otro",
+] as const;
+
+const ROLES = [
+  "Nuevo Integrante",
+  "Miembro Activo",
+  "Egresado",
+  "Otro",
+] as const;
+
+const AREAS_INTERES = [
+  "Sistemas de Información Geográfica (SIG)",
+  "Ordenamiento Territorial y Manejo de Cuencas Hidrográficas",
+  "Geografía Urbana",
+  "Gestión del Riesgo y Medio Ambiente",
+  "Investigación y Publicaciones",
+  "Otro",
+] as const;
+
+const FACULTADES = [
+  "Ciencias Naturales, Exactas y de la Educación",
+  "Ciencias Agropecuarias",
+  "Ciencias Contables, Económicas y Administrativas",
+  "Ciencias Humanas y Sociales",
+  "Derecho, Ciencias Políticas y Sociales",
+  "Ingeniería Civil",
+  "Ingeniería Electrónica y Telecomunicaciones",
+  "Ingeniería Mecánica",
+  "Otra",
+];
+
+// ─────────────────────────────────────────────
+// TIPOS
+// ─────────────────────────────────────────────
+
 interface FormData {
-  nombre: string;
+  honeypot: string;
+  // Identificación
+  codigoEstudiantil: string;
+  fechaNacimiento: string;
+  tipoIdentificacion: (typeof TIPOS_IDENTIFICACION)[number];
+  tipoIdentificacionOtro: string;
+  numeroIdentificacion: string;
+  // Personales
+  nombres: string;
+  apellidos: string;
+  celular: string;
   email: string;
+  // Académico
+  facultad: string;
   programa: string;
+  semestre: number;
+  noAplicaSemestre: boolean;
+  // Vinculación
+  rol: (typeof ROLES)[number];
+  rolOtro: string;
+  areaInteres: (typeof AREAS_INTERES)[number];
+  areaInteresOtro: string;
   motivacion: string;
-  honeypot: string; // Campo oculto para detectar bots
 }
 
-// Función para sanitizar entradas y prevenir inyección de código
+// ─────────────────────────────────────────────
+// UTILIDADES
+// ─────────────────────────────────────────────
+
 const sanitizeInput = (input: string): string => {
   return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "") // Eliminar scripts
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "") // Eliminar iframes
-    .replace(/javascript:/gi, "") // Eliminar javascript: URLs
-    .replace(/on\w+\s*=/gi, "") // Eliminar event handlers (onclick, onload, etc.)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+    .replace(/javascript:/gi, "")
+    .replace(/on\w+\s*=/gi, "")
     .trim();
 };
+
+// ─────────────────────────────────────────────
+// SUB-COMPONENTES
+// ─────────────────────────────────────────────
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <div className="flex items-start gap-2 mt-2">
+      <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+      <p className="text-red-300 text-sm">{message}</p>
+    </div>
+  );
+}
+
+function SectionDivider({ title }: { title: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-2">
+      <div className="h-px flex-1 bg-white/10" />
+      <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
+        {title}
+      </span>
+      <div className="h-px flex-1 bg-white/10" />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// COMPONENTE PRINCIPAL
+// ─────────────────────────────────────────────
 
 export function JoinSectionAlt() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [lastSubmitTime, setLastSubmitTime] = useState<number>(0);
-  const submitCount = useRef(0);
   const submitTimeWindow = useRef<number[]>([]);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<FormData>();
 
+  const watchTipoId = watch("tipoIdentificacion");
+  const watchRol = watch("rol");
+  const watchArea = watch("areaInteres");
+  const watchSemestre = watch("semestre");
+  const watchNoAplicaSemestre = watch("noAplicaSemestre");
+
+  // ── ESTILOS REUTILIZABLES ──────────────────
+  const inputCls = (hasError: boolean) =>
+    `bg-white/10 border-white/20 text-white placeholder:text-gray-400 ${
+      hasError ? "border-red-400 focus:border-red-400" : ""
+    }`;
+
+  const radioItemCls =
+    "flex items-center gap-3 px-4 py-3 rounded-xl border border-white/15 hover:border-emerald-400/50 hover:bg-white/5 cursor-pointer transition-all";
+
+  // ── SUBMIT ─────────────────────────────────
   const onSubmit = async (data: FormData) => {
     try {
-      // 1. Verificar honeypot - Si está lleno, es un bot
       if (data.honeypot) {
-        console.warn("Intento de bot detectado");
+        console.warn("Bot detectado - honeypot lleno");
         return;
       }
 
-      // 2. Rate limiting - Prevenir envíos demasiado rápidos
       const now = Date.now();
-      const timeSinceLastSubmit = now - lastSubmitTime;
-
-      // No permitir más de un envío cada 10 segundos
-      if (timeSinceLastSubmit < 10000) {
+      if (now - lastSubmitTime < 10000) {
         toast.error(
           "Por favor espera unos segundos antes de enviar otra solicitud.",
         );
         return;
       }
 
-      // 3. Prevenir spam - No más de 3 envíos en 5 minutos
       submitTimeWindow.current.push(now);
       submitTimeWindow.current = submitTimeWindow.current.filter(
-        (time) => now - time < 300000, // 5 minutos
+        (t) => now - t < 300000,
       );
-
       if (submitTimeWindow.current.length > 3) {
         toast.error(
           "Has alcanzado el límite de envíos. Por favor intenta más tarde.",
@@ -73,75 +175,77 @@ export function JoinSectionAlt() {
         return;
       }
 
-      // 4. Sanitizar todos los campos de entrada
-      const sanitizedData = {
-        nombre: sanitizeInput(data.nombre),
-        email: sanitizeInput(data.email),
+      // Sanitizar
+      const s = {
+        codigoEstudiantil: sanitizeInput(data.codigoEstudiantil),
+        fechaNacimiento: data.fechaNacimiento,
+        tipoIdentificacion: data.tipoIdentificacion,
+        tipoIdentificacionOtro: sanitizeInput(
+          data.tipoIdentificacionOtro || "",
+        ),
+        numeroIdentificacion: sanitizeInput(data.numeroIdentificacion),
+        nombres: sanitizeInput(data.nombres),
+        apellidos: sanitizeInput(data.apellidos),
+        celular: sanitizeInput(data.celular).replace(/\s/g, ""),
+        email: sanitizeInput(data.email).toLowerCase(),
+        facultad: sanitizeInput(data.facultad),
         programa: sanitizeInput(data.programa),
+        semestre: Number(data.semestre),
+        rol: data.rol,
+        rolOtro: sanitizeInput(data.rolOtro || ""),
+        areaInteres: data.areaInteres,
+        areaInteresOtro: sanitizeInput(data.areaInteresOtro || ""),
         motivacion: sanitizeInput(data.motivacion),
       };
 
-      // 5. Validación adicional de longitud después de sanitización
-      if (
-        sanitizedData.nombre.length < 3 ||
-        sanitizedData.nombre.length > 100
-      ) {
-        toast.error("El nombre debe tener entre 3 y 100 caracteres.");
-        return;
-      }
-
-      if (
-        sanitizedData.motivacion.length < 20 ||
-        sanitizedData.motivacion.length > 500
-      ) {
-        toast.error("La motivación debe tener entre 20 y 500 caracteres.");
-        return;
-      }
-
-      // 6. Verificar que los datos sanitizados no estén vacíos
-      if (
-        !sanitizedData.nombre ||
-        !sanitizedData.email ||
-        !sanitizedData.programa ||
-        !sanitizedData.motivacion
-      ) {
-        toast.error("Por favor completa todos los campos correctamente.");
-        return;
-      }
-
-      // 7. Guardar en Firebase Firestore
       try {
         const docRef = await addDoc(collection(db, "solicitudes"), {
-          nombre: sanitizedData.nombre,
-          email: sanitizedData.email,
-          programa: sanitizedData.programa,
-          motivacion: sanitizedData.motivacion,
-          estado: "pendiente", // Estados: pendiente, revisada, aceptada, rechazada
+          // Identificación
+          codigoEstudiantil: s.codigoEstudiantil,
+          fechaNacimiento: s.fechaNacimiento,
+          tipoIdentificacion: s.tipoIdentificacion,
+          tipoIdentificacionOtro:
+            s.tipoIdentificacion === "Otro" ? s.tipoIdentificacionOtro : "",
+          numeroIdentificacion: s.numeroIdentificacion,
+          // Personales
+          nombres: s.nombres,
+          apellidos: s.apellidos,
+          celular: s.celular,
+          email: s.email,
+          // Académico
+          facultad: s.facultad,
+          programa: s.programa,
+          semestre: s.semestre,
+          // Vinculación
+          rol: s.rol,
+          rolOtro: s.rol === "Otro" ? s.rolOtro : "",
+          areaInteres: s.areaInteres,
+          areaInteresOtro: s.areaInteres === "Otro" ? s.areaInteresOtro : "",
+          motivacion: s.motivacion,
+          // Metadatos
+          estado: "pendiente",
           fechaCreacion: serverTimestamp(),
           fechaRevision: null,
           comentariosAdmin: "",
+          userAgent: navigator.userAgent,
+          ipAddress: "",
         });
 
-        console.log("Solicitud guardada en Firebase con ID:", docRef.id);
+        console.log("✅ Solicitud guardada con ID:", docRef.id);
       } catch (firebaseError) {
-        console.error("Error al guardar en Firebase:", firebaseError);
+        console.error("❌ Error Firebase:", firebaseError);
         toast.error(
           "Hubo un error al procesar tu solicitud. Por favor intenta nuevamente.",
         );
         return;
       }
 
-      // Actualizar tiempo del último envío
       setLastSubmitTime(now);
-      submitCount.current += 1;
-
+      setIsSubmitted(true);
       toast.success(
         "¡Solicitud enviada exitosamente! Nos pondremos en contacto pronto.",
       );
-      setIsSubmitted(true);
       reset();
-
-      // Resetear el estado después de 5 segundos
       setTimeout(() => setIsSubmitted(false), 5000);
     } catch (error) {
       toast.error(
@@ -150,6 +254,7 @@ export function JoinSectionAlt() {
     }
   };
 
+  // ── BENEFICIOS ─────────────────────────────
   const benefits = [
     "Acceso a software especializado (ArcGIS, ENVI, etc.)",
     "Bases de datos geoespaciales y satelitales",
@@ -159,10 +264,11 @@ export function JoinSectionAlt() {
     "Networking con investigadores y profesionales",
   ];
 
+  // ── RENDER ─────────────────────────────────
   return (
     <section id="unete" className="py-16 bg-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header - Más grande y prominente */}
+        {/* Header */}
         <div className="text-center max-w-4xl mx-auto mb-12">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -199,8 +305,8 @@ export function JoinSectionAlt() {
 
         {/* Two Column Layout */}
         <div className="grid lg:grid-cols-2 gap-12 items-start">
-          {/* Benefits */}
-          <div className="bg-gradient-to-br from-blue-50 to-emerald-50 rounded-3xl p-8 lg:p-10 border-2 border-emerald-100">
+          {/* ── COLUMNA IZQUIERDA: Beneficios ── */}
+          <div className="bg-gradient-to-br from-blue-50 to-emerald-50 rounded-3xl p-8 lg:p-10 border-2 border-emerald-100 sticky top-8 self-start">
             <h3 className="text-gray-900 mb-6">Beneficios de unirte</h3>
             <div className="space-y-4">
               {benefits.map((benefit) => (
@@ -245,7 +351,7 @@ export function JoinSectionAlt() {
             </div>
           </div>
 
-          {/* Contact Form */}
+          {/* ── COLUMNA DERECHA: Formulario ── */}
           <div className="bg-gradient-to-br from-blue-950 to-emerald-900 rounded-3xl p-8 lg:p-10 text-white">
             <h3 className="text-white mb-2">Solicita tu vinculación</h3>
             <p className="text-gray-300 mb-6">
@@ -255,53 +361,177 @@ export function JoinSectionAlt() {
             {isSubmitted && (
               <div className="mb-6 p-4 bg-emerald-500/20 border border-emerald-400/50 rounded-lg flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-300 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-emerald-100 text-sm">
-                    ¡Solicitud enviada exitosamente! Revisaremos tu información
-                    y nos pondremos en contacto pronto.
-                  </p>
-                </div>
+                <p className="text-emerald-100 text-sm">
+                  ¡Solicitud enviada exitosamente! Revisaremos tu información y
+                  nos pondremos en contacto pronto.
+                </p>
               </div>
             )}
 
+            {/* Honeypot */}
+            <div className="hidden">
+              <Input
+                type="text"
+                {...register("honeypot")}
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              {/* ══ IDENTIFICACIÓN ══ */}
+              <SectionDivider title="Identificación" />
+
+              {/* Código Estudiantil */}
               <div>
                 <label className="block text-sm text-gray-200 mb-2">
-                  Nombre completo <span className="text-red-400">*</span>
+                  Código Estudiantil <span className="text-red-400">*</span>
                 </label>
                 <Input
-                  type="text"
-                  placeholder="Juan Pérez García"
-                  className={`bg-white/10 border-white/20 text-white placeholder:text-gray-400 ${
-                    errors.nombre ? "border-red-400 focus:border-red-400" : ""
-                  }`}
-                  {...register("nombre", {
-                    required: "El nombre completo es obligatorio",
-                    minLength: {
-                      value: 3,
-                      message: "El nombre debe tener al menos 3 caracteres",
-                    },
-                    maxLength: {
-                      value: 100,
-                      message: "El nombre no puede exceder 100 caracteres",
-                    },
-                    pattern: {
-                      value: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
-                      message:
-                        "El nombre solo puede contener letras y espacios",
-                    },
+                  placeholder="Ej: 2023100123"
+                  className={inputCls(!!errors.codigoEstudiantil)}
+                  {...register("codigoEstudiantil", {
+                    required: "El código estudiantil es obligatorio",
+                    minLength: { value: 3, message: "Mínimo 3 caracteres" },
                   })}
                 />
-                {errors.nombre && (
-                  <div className="flex items-start gap-2 mt-2">
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-300 text-sm">
-                      {errors.nombre.message}
-                    </p>
+                <FieldError message={errors.codigoEstudiantil?.message} />
+              </div>
+
+              {/* Fecha de Nacimiento */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Fecha de Nacimiento <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className={inputCls(!!errors.fechaNacimiento)}
+                  {...register("fechaNacimiento", {
+                    required: "La fecha de nacimiento es obligatoria",
+                  })}
+                />
+                <FieldError message={errors.fechaNacimiento?.message} />
+              </div>
+
+              {/* Tipo de Identificación */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Tipo de Identificación <span className="text-red-400">*</span>
+                </label>
+                <div className="space-y-2">
+                  {TIPOS_IDENTIFICACION.map((tipo) => (
+                    <label key={tipo} className={radioItemCls}>
+                      <input
+                        type="radio"
+                        value={tipo}
+                        className="w-4 h-4 accent-emerald-400"
+                        {...register("tipoIdentificacion", {
+                          required: "Selecciona un tipo de identificación",
+                        })}
+                      />
+                      <span className="text-sm text-gray-200">{tipo}</span>
+                    </label>
+                  ))}
+                </div>
+                <FieldError message={errors.tipoIdentificacion?.message} />
+                {watchTipoId === "Otro" && (
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Especifica el tipo de identificación"
+                      className={inputCls(!!errors.tipoIdentificacionOtro)}
+                      {...register("tipoIdentificacionOtro", {
+                        required: "Por favor especifica el tipo",
+                      })}
+                    />
+                    <FieldError
+                      message={errors.tipoIdentificacionOtro?.message}
+                    />
                   </div>
                 )}
               </div>
 
+              {/* Número de Identificación */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Número de Identificación{" "}
+                  <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  placeholder="Ej: 1234567890"
+                  className={inputCls(!!errors.numeroIdentificacion)}
+                  {...register("numeroIdentificacion", {
+                    required: "El número de identificación es obligatorio",
+                    minLength: { value: 5, message: "Mínimo 5 caracteres" },
+                    maxLength: { value: 20, message: "Máximo 20 caracteres" },
+                  })}
+                />
+                <FieldError message={errors.numeroIdentificacion?.message} />
+              </div>
+
+              {/* ══ DATOS PERSONALES ══ */}
+              <SectionDivider title="Datos Personales" />
+
+              {/* Nombres y Apellidos */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-200 mb-2">
+                    Nombres <span className="text-red-400">*</span>
+                  </label>
+                  <Input
+                    placeholder="Juan Andrés"
+                    className={inputCls(!!errors.nombres)}
+                    {...register("nombres", {
+                      required: "Los nombres son obligatorios",
+                      minLength: { value: 2, message: "Mínimo 2 caracteres" },
+                      pattern: {
+                        value: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+                        message: "Solo letras",
+                      },
+                    })}
+                  />
+                  <FieldError message={errors.nombres?.message} />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-200 mb-2">
+                    Apellidos <span className="text-red-400">*</span>
+                  </label>
+                  <Input
+                    placeholder="Pérez García"
+                    className={inputCls(!!errors.apellidos)}
+                    {...register("apellidos", {
+                      required: "Los apellidos son obligatorios",
+                      minLength: { value: 2, message: "Mínimo 2 caracteres" },
+                      pattern: {
+                        value: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+                        message: "Solo letras",
+                      },
+                    })}
+                  />
+                  <FieldError message={errors.apellidos?.message} />
+                </div>
+              </div>
+
+              {/* Celular */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Celular <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  type="tel"
+                  placeholder="3001234567"
+                  className={inputCls(!!errors.celular)}
+                  {...register("celular", {
+                    required: "El celular es obligatorio",
+                    pattern: {
+                      value: /^3\d{9}$/,
+                      message: "Número colombiano de 10 dígitos (inicia con 3)",
+                    },
+                  })}
+                />
+                <FieldError message={errors.celular?.message} />
+              </div>
+
+              {/* Email */}
               <div>
                 <label className="block text-sm text-gray-200 mb-2">
                   Correo electrónico <span className="text-red-400">*</span>
@@ -309,59 +539,179 @@ export function JoinSectionAlt() {
                 <Input
                   type="email"
                   placeholder="ejemplo@unicauca.edu.co"
-                  className={`bg-white/10 border-white/20 text-white placeholder:text-gray-400 ${
-                    errors.email ? "border-red-400 focus:border-red-400" : ""
-                  }`}
+                  className={inputCls(!!errors.email)}
                   {...register("email", {
                     required: "El correo electrónico es obligatorio",
                     pattern: {
                       value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                      message: "Por favor ingresa un correo electrónico válido",
+                      message: "Por favor ingresa un correo válido",
                     },
                   })}
                 />
-                {errors.email && (
-                  <div className="flex items-start gap-2 mt-2">
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-300 text-sm">
-                      {errors.email.message}
-                    </p>
-                  </div>
-                )}
+                <FieldError message={errors.email?.message} />
               </div>
 
+              {/* ══ DATOS ACADÉMICOS ══ */}
+              <SectionDivider title="Datos Académicos" />
+
+              {/* Facultad */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Facultad <span className="text-red-400">*</span>
+                </label>
+                <select
+                  className={`w-full rounded-md px-3 py-2 text-sm bg-white/10 border text-white
+                    ${errors.facultad ? "border-red-400" : "border-white/20"}
+                    focus:outline-none focus:border-emerald-400`}
+                  {...register("facultad", {
+                    required: "La facultad es obligatoria",
+                  })}
+                >
+                  <option value="" style={{ background: "#1e3a5f" }}>
+                    Selecciona tu facultad
+                  </option>
+                  {FACULTADES.map((f) => (
+                    <option key={f} value={f} style={{ background: "#1e3a5f" }}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={errors.facultad?.message} />
+              </div>
+
+              {/* Programa */}
               <div>
                 <label className="block text-sm text-gray-200 mb-2">
                   Programa académico <span className="text-red-400">*</span>
                 </label>
                 <Input
-                  type="text"
                   placeholder="Ej: Ingeniería Civil, Geografía, Biología"
-                  className={`bg-white/10 border-white/20 text-white placeholder:text-gray-400 ${
-                    errors.programa ? "border-red-400 focus:border-red-400" : ""
-                  }`}
+                  className={inputCls(!!errors.programa)}
                   {...register("programa", {
                     required: "El programa académico es obligatorio",
-                    minLength: {
-                      value: 3,
-                      message: "El programa debe tener al menos 3 caracteres",
-                    },
-                    maxLength: {
-                      value: 100,
-                      message: "El programa no puede exceder 100 caracteres",
-                    },
+                    minLength: { value: 3, message: "Mínimo 3 caracteres" },
+                    maxLength: { value: 100, message: "Máximo 100 caracteres" },
                   })}
                 />
-                {errors.programa && (
-                  <div className="flex items-start gap-2 mt-2">
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-300 text-sm">
-                      {errors.programa.message}
-                    </p>
+                <FieldError message={errors.programa?.message} />
+              </div>
+
+              {/* Semestre */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Semestre <span className="text-red-400">*</span>
+                </label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="number"
+                    placeholder="1 - 10"
+                    min={1}
+                    max={10}
+                    disabled={!!watchNoAplicaSemestre}
+                    className={`w-32 ${inputCls(!!errors.semestre)} disabled:opacity-40`}
+                    {...register("semestre", {
+                      validate: (val) =>
+                        !!watchNoAplicaSemestre ||
+                        (Number(val) >= 1 && Number(val) <= 10) ||
+                        "Ingresa un semestre entre 1 y 10",
+                    })}
+                  />
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-emerald-400"
+                      {...register("noAplicaSemestre")}
+                    />
+                    <span className="text-sm text-gray-300">No aplica</span>
+                  </label>
+                </div>
+                <FieldError message={errors.semestre?.message} />
+              </div>
+
+              {/* ══ VINCULACIÓN ══ */}
+              <SectionDivider title="Vinculación al Semillero" />
+
+              {/* Rol */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Rol <span className="text-red-400">*</span>
+                </label>
+                <select
+                  className={`w-full rounded-md px-3 py-2 text-sm bg-white/10 border text-white
+                    ${errors.rol ? "border-red-400" : "border-white/20"}
+                    focus:outline-none focus:border-emerald-400`}
+                  {...register("rol", { required: "Selecciona un rol" })}
+                >
+                  <option value="" style={{ background: "#1e3a5f" }}>
+                    Selecciona tu rol
+                  </option>
+                  {ROLES.map((rol) => (
+                    <option
+                      key={rol}
+                      value={rol}
+                      style={{ background: "#1e3a5f" }}
+                    >
+                      {rol}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={errors.rol?.message} />
+                {watchRol === "Otro" && (
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Especifica tu rol"
+                      className={inputCls(!!errors.rolOtro)}
+                      {...register("rolOtro", {
+                        required: "Por favor especifica el rol",
+                      })}
+                    />
+                    <FieldError message={errors.rolOtro?.message} />
                   </div>
                 )}
               </div>
 
+              {/* Área de Interés */}
+              <div>
+                <label className="block text-sm text-gray-200 mb-2">
+                  Área de Interés <span className="text-red-400">*</span>
+                </label>
+                <select
+                  className={`w-full rounded-md px-3 py-2 text-sm bg-white/10 border text-white
+                    ${errors.areaInteres ? "border-red-400" : "border-white/20"}
+                    focus:outline-none focus:border-emerald-400`}
+                  {...register("areaInteres", {
+                    required: "Selecciona un área de interés",
+                  })}
+                >
+                  <option value="" style={{ background: "#1e3a5f" }}>
+                    Selecciona tu área de interés
+                  </option>
+                  {AREAS_INTERES.map((area) => (
+                    <option
+                      key={area}
+                      value={area}
+                      style={{ background: "#1e3a5f" }}
+                    >
+                      {area}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={errors.areaInteres?.message} />
+                {watchArea === "Otro" && (
+                  <div className="mt-2">
+                    <Input
+                      placeholder="Especifica tu área de interés"
+                      className={inputCls(!!errors.areaInteresOtro)}
+                      {...register("areaInteresOtro", {
+                        required: "Por favor especifica el área",
+                      })}
+                    />
+                    <FieldError message={errors.areaInteresOtro?.message} />
+                  </div>
+                )}
+              </div>
+
+              {/* Motivación */}
               <div>
                 <label className="block text-sm text-gray-200 mb-2">
                   ¿Por qué quieres unirte?{" "}
@@ -379,35 +729,18 @@ export function JoinSectionAlt() {
                     required: "Por favor cuéntanos tu motivación para unirte",
                     minLength: {
                       value: 20,
-                      message:
-                        "Por favor escribe al menos 20 caracteres describiendo tu motivación",
+                      message: "Por favor escribe al menos 20 caracteres",
                     },
                     maxLength: {
-                      value: 500,
-                      message: "La motivación no puede exceder 500 caracteres",
+                      value: 1000,
+                      message: "La motivación no puede exceder 1000 caracteres",
                     },
                   })}
                 />
-                {errors.motivacion && (
-                  <div className="flex items-start gap-2 mt-2">
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-300 text-sm">
-                      {errors.motivacion.message}
-                    </p>
-                  </div>
-                )}
+                <FieldError message={errors.motivacion?.message} />
               </div>
 
-              {/* Campo oculto para detectar bots */}
-              <div className="hidden">
-                <Input
-                  type="text"
-                  placeholder="Deja este campo vacío"
-                  className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                  {...register("honeypot")}
-                />
-              </div>
-
+              {/* Botón enviar */}
               <Button
                 type="submit"
                 disabled={isSubmitting}

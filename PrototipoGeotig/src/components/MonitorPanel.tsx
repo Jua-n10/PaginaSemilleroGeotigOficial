@@ -63,7 +63,8 @@ interface Miembro {
 
 interface Solicitud {
   id: string;
-  nombre: string;
+  nombres: string; // ✅ actualizado
+  apellidos: string; // ✅ actualizado
   email: string;
   programa: string;
   mensaje: string;
@@ -95,7 +96,7 @@ async function enviarCorreoBienvenida(
       TEMPLATE_ID_BIENVENIDA,
       {
         to_email: solicitud.email,
-        nombre: solicitud.nombre,
+        nombre: `${solicitud.nombres} ${solicitud.apellidos}`, // ✅ actualizado
         programa: solicitud.programa,
         comentario: comentarioFinal,
       },
@@ -119,7 +120,7 @@ async function enviarCorreoRechazo(solicitud: Solicitud, comentario: string) {
       TEMPLATE_ID_RECHAZO,
       {
         to_email: solicitud.email,
-        nombre: solicitud.nombre,
+        nombre: `${solicitud.nombres} ${solicitud.apellidos}`, // ✅ actualizado
         programa: solicitud.programa,
         comentario: comentarioFinal,
       },
@@ -133,7 +134,6 @@ async function enviarCorreoRechazo(solicitud: Solicitud, comentario: string) {
 }
 
 export function MonitorPanel({ onClose }: MonitorPanelProps) {
-  // Inicializar EmailJS
   useEffect(() => {
     emailjs.init({ publicKey: PUBLIC_KEY });
   }, []);
@@ -199,7 +199,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
   ]);
 
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
-
   const [comentarioSolicitud, setComentarioSolicitud] = useState("");
   const [solicitudSeleccionada, setSolicitudSeleccionada] =
     useState<Solicitud | null>(null);
@@ -255,13 +254,13 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
       collection(db, "solicitudes"),
       orderBy("fechaCreacion", "desc"),
     );
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => {
         const docData = doc.data();
         return {
           id: doc.id,
-          nombre: docData.nombre || "",
+          nombres: docData.nombres || "", // ✅ actualizado
+          apellidos: docData.apellidos || "", // ✅ actualizado
           email: docData.email || "",
           programa: docData.programa || "",
           mensaje: docData.motivacion || "",
@@ -275,13 +274,11 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
       });
       setSolicitudes(data);
     });
-
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     const alreadyWelcomed = sessionStorage.getItem("geotig_monitor_welcome");
-
     if (!alreadyWelcomed) {
       toast.success(
         "¡Bienvenido Monitor! Has ingresado al Panel de Monitor de GEOTIG 👨‍💻",
@@ -314,10 +311,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
         comentariosAdmin: comentarioSolicitud,
         fechaRevision: new Date(),
       });
-
-      // Enviar email de bienvenida
       await enviarCorreoBienvenida(solicitudSeleccionada, comentarioSolicitud);
-
       toast.success("Solicitud aprobada y correo enviado");
       setModalAceptar(false);
       setComentarioSolicitud("");
@@ -342,10 +336,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
         comentariosAdmin: comentarioSolicitud,
         fechaRevision: new Date(),
       });
-
-      // Enviar email de rechazo
       await enviarCorreoRechazo(solicitudSeleccionada, comentarioSolicitud);
-
       toast.success("Solicitud rechazada y correo enviado");
       setModalRechazar(false);
       setComentarioSolicitud("");
@@ -441,18 +432,23 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
           <nav className="p-4 space-y-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const pendientesCount =
+                tab.id === "solicitudes"
+                  ? solicitudes.filter((s) => s.estado === "pendiente").length
+                  : 0;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === tab.id
-                      ? "bg-gradient-to-r from-blue-900 to-teal-600 text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === tab.id ? "bg-gradient-to-r from-blue-900 to-teal-600 text-white" : "text-gray-700 hover:bg-gray-100"}`}
                 >
                   <Icon className="w-5 h-5" />
-                  {tab.label}
+                  <span className="flex-1 text-left">{tab.label}</span>
+                  {pendientesCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                      {pendientesCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -490,7 +486,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                     </div>
                   </CardContent>
                 </Card>
-
                 <Card className="border-l-4 border-l-blue-600">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -506,7 +501,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                     </div>
                   </CardContent>
                 </Card>
-
                 <Card className="border-l-4 border-l-orange-600">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -522,7 +516,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                     </div>
                   </CardContent>
                 </Card>
-
                 <Card className="border-l-4 border-l-red-600">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -643,7 +636,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
               <h2 className="text-3xl font-bold text-gray-900">
                 Proyectos del Semillero
               </h2>
-
               <div className="grid gap-4">
                 {proyectos.map((proyecto) => (
                   <Card
@@ -673,13 +665,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                                     e.target.value,
                                   )
                                 }
-                                className={`px-3 py-1 rounded-full text-sm font-medium border-2 ${
-                                  proyecto.estado === "activo"
-                                    ? "bg-green-100 text-green-700 border-green-300"
-                                    : proyecto.estado === "completado"
-                                      ? "bg-blue-100 text-blue-700 border-blue-300"
-                                      : "bg-orange-100 text-orange-700 border-orange-300"
-                                }`}
+                                className={`px-3 py-1 rounded-full text-sm font-medium border-2 ${proyecto.estado === "activo" ? "bg-green-100 text-green-700 border-green-300" : proyecto.estado === "completado" ? "bg-blue-100 text-blue-700 border-blue-300" : "bg-orange-100 text-orange-700 border-orange-300"}`}
                               >
                                 <option value="en_desarrollo">
                                   En Desarrollo
@@ -720,7 +706,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
               <h2 className="text-3xl font-bold text-gray-900">
                 Equipo del Semillero
               </h2>
-
               <div className="grid gap-4">
                 {miembros.map((miembro) => (
                   <Card
@@ -765,336 +750,218 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                 Solicitudes de Estudiantes
               </h2>
 
-              {/* Submenú de Solicitudes */}
               <div className="flex gap-2 border-b border-gray-200">
                 <button
                   onClick={() => setSolicitudesSubTab("pendientes")}
-                  className={`px-6 py-3 font-medium border-b-2 transition-colors ${
-                    solicitudesSubTab === "pendientes"
-                      ? "border-orange-500 text-orange-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
+                  className={`px-6 py-3 font-medium border-b-2 transition-colors ${solicitudesSubTab === "pendientes" ? "border-orange-500 text-orange-600" : "border-transparent text-gray-600 hover:text-gray-900"}`}
                 >
                   Pendientes (
                   {solicitudes.filter((s) => s.estado === "pendiente").length})
                 </button>
                 <button
                   onClick={() => setSolicitudesSubTab("aprobadas")}
-                  className={`px-6 py-3 font-medium border-b-2 transition-colors ${
-                    solicitudesSubTab === "aprobadas"
-                      ? "border-green-500 text-green-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
+                  className={`px-6 py-3 font-medium border-b-2 transition-colors ${solicitudesSubTab === "aprobadas" ? "border-green-500 text-green-600" : "border-transparent text-gray-600 hover:text-gray-900"}`}
                 >
                   Aprobadas (
                   {solicitudes.filter((s) => s.estado === "aceptada").length})
                 </button>
                 <button
                   onClick={() => setSolicitudesSubTab("rechazadas")}
-                  className={`px-6 py-3 font-medium border-b-2 transition-colors ${
-                    solicitudesSubTab === "rechazadas"
-                      ? "border-red-500 text-red-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
+                  className={`px-6 py-3 font-medium border-b-2 transition-colors ${solicitudesSubTab === "rechazadas" ? "border-red-500 text-red-600" : "border-transparent text-gray-600 hover:text-gray-900"}`}
                 >
                   Rechazadas (
                   {solicitudes.filter((s) => s.estado === "rechazada").length})
                 </button>
               </div>
 
-              {/* Contenido del Submenú - Pendientes */}
+              {/* Pendientes */}
               {solicitudesSubTab === "pendientes" && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {solicitudes
-                      .filter((s) => s.estado === "pendiente")
-                      .map((solicitud) => (
-                        <Card
-                          key={solicitud.id}
-                          className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500"
-                        >
-                          <CardContent className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-bold text-gray-900">
-                                    {solicitud.nombre}
-                                  </h3>
-                                  <p className="text-teal-600 font-medium text-sm mt-1">
-                                    {solicitud.programa}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
-                                    <Mail className="w-4 h-4" />
-                                    {solicitud.email}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                                    <Calendar className="w-4 h-4" />
-                                    {solicitud.fecha}
-                                  </p>
-                                </div>
-                                <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
-                                  Pendiente
-                                </span>
-                              </div>
-
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-sm text-gray-600 font-medium mb-1">
-                                  Motivación:
+                <div className="grid gap-4">
+                  {solicitudes
+                    .filter((s) => s.estado === "pendiente")
+                    .map((solicitud) => (
+                      <Card
+                        key={solicitud.id}
+                        className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500"
+                      >
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                  {solicitud.nombres} {solicitud.apellidos}{" "}
+                                  {/* ✅ actualizado */}
+                                </h3>
+                                <p className="text-teal-600 font-medium text-sm mt-1">
+                                  {solicitud.programa}
                                 </p>
-                                <p className="text-gray-700">
-                                  {solicitud.mensaje}
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
+                                  <Mail className="w-4 h-4" />
+                                  {solicitud.email}
+                                </p>
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {solicitud.fecha}
                                 </p>
                               </div>
-
-                              <div className="flex gap-2 pt-2">
-                                <button
-                                  onClick={() =>
-                                    handleAprobarSolicitud(solicitud)
-                                  }
-                                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                                >
-                                  <Save className="w-4 h-4" />
-                                  Aprobar
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleRechazarSolicitud(solicitud)
-                                  }
-                                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                                >
-                                  <X className="w-4 h-4" />
-                                  Rechazar
-                                </button>
-                              </div>
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-700">
+                                Pendiente
+                              </span>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    {solicitudes.filter((s) => s.estado === "pendiente")
-                      .length === 0 && (
-                      <Card>
-                        <CardContent className="p-6 text-center text-gray-500">
-                          No hay solicitudes pendientes
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <p className="text-sm text-gray-600 font-medium mb-1">
+                                Motivación:
+                              </p>
+                              <p className="text-gray-700">
+                                {solicitud.mensaje}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                onClick={() =>
+                                  handleAprobarSolicitud(solicitud)
+                                }
+                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <Save className="w-4 h-4" />
+                                Aprobar
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleRechazarSolicitud(solicitud)
+                                }
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <X className="w-4 h-4" />
+                                Rechazar
+                              </button>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                    )}
-                  </div>
+                    ))}
+                  {solicitudes.filter((s) => s.estado === "pendiente")
+                    .length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center text-gray-500">
+                        No hay solicitudes pendientes
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 
-              {/* Contenido del Submenú - Aprobadas */}
+              {/* Aprobadas */}
               {solicitudesSubTab === "aprobadas" && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {solicitudes
-                      .filter((s) => s.estado === "aceptada")
-                      .map((solicitud) => (
-                        <Card
-                          key={solicitud.id}
-                          className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500"
-                        >
-                          <CardContent className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-bold text-gray-900">
-                                    {solicitud.nombre}
-                                  </h3>
-                                  <p className="text-teal-600 font-medium text-sm mt-1">
-                                    {solicitud.programa}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
-                                    <Mail className="w-4 h-4" />
-                                    {solicitud.email}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                                    <Calendar className="w-4 h-4" />
-                                    {solicitud.fecha}
-                                  </p>
-                                </div>
-                                <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
-                                  Aceptada
-                                </span>
-                              </div>
-
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-sm text-gray-600 font-medium mb-1">
-                                  Motivación:
+                <div className="grid gap-4">
+                  {solicitudes
+                    .filter((s) => s.estado === "aceptada")
+                    .map((solicitud) => (
+                      <Card
+                        key={solicitud.id}
+                        className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500"
+                      >
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                  {solicitud.nombres} {solicitud.apellidos}{" "}
+                                  {/* ✅ actualizado */}
+                                </h3>
+                                <p className="text-teal-600 font-medium text-sm mt-1">
+                                  {solicitud.programa}
                                 </p>
-                                <p className="text-gray-700">
-                                  {solicitud.mensaje}
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
+                                  <Mail className="w-4 h-4" />
+                                  {solicitud.email}
+                                </p>
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {solicitud.fecha}
                                 </p>
                               </div>
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                                Aceptada
+                              </span>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    {solicitudes.filter((s) => s.estado === "aceptada")
-                      .length === 0 && (
-                      <Card>
-                        <CardContent className="p-6 text-center text-gray-500">
-                          No hay solicitudes aprobadas
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <p className="text-sm text-gray-600 font-medium mb-1">
+                                Motivación:
+                              </p>
+                              <p className="text-gray-700">
+                                {solicitud.mensaje}
+                              </p>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                    )}
-                  </div>
+                    ))}
+                  {solicitudes.filter((s) => s.estado === "aceptada").length ===
+                    0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center text-gray-500">
+                        No hay solicitudes aprobadas
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 
-              {/* Contenido del Submenú - Rechazadas */}
+              {/* Rechazadas */}
               {solicitudesSubTab === "rechazadas" && (
-                <div className="space-y-4">
-                  <div className="grid gap-4">
-                    {solicitudes
-                      .filter((s) => s.estado === "rechazada")
-                      .map((solicitud) => (
-                        <Card
-                          key={solicitud.id}
-                          className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500"
-                        >
-                          <CardContent className="p-6">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-bold text-gray-900">
-                                    {solicitud.nombre}
-                                  </h3>
-                                  <p className="text-teal-600 font-medium text-sm mt-1">
-                                    {solicitud.programa}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
-                                    <Mail className="w-4 h-4" />
-                                    {solicitud.email}
-                                  </p>
-                                  <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                                    <Calendar className="w-4 h-4" />
-                                    {solicitud.fecha}
-                                  </p>
-                                </div>
-                                <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700">
-                                  Rechazada
-                                </span>
-                              </div>
-
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-sm text-gray-600 font-medium mb-1">
-                                  Motivación:
+                <div className="grid gap-4">
+                  {solicitudes
+                    .filter((s) => s.estado === "rechazada")
+                    .map((solicitud) => (
+                      <Card
+                        key={solicitud.id}
+                        className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500"
+                      >
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                  {solicitud.nombres} {solicitud.apellidos}{" "}
+                                  {/* ✅ actualizado */}
+                                </h3>
+                                <p className="text-teal-600 font-medium text-sm mt-1">
+                                  {solicitud.programa}
                                 </p>
-                                <p className="text-gray-700">
-                                  {solicitud.mensaje}
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-2">
+                                  <Mail className="w-4 h-4" />
+                                  {solicitud.email}
+                                </p>
+                                <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {solicitud.fecha}
                                 </p>
                               </div>
+                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700">
+                                Rechazada
+                              </span>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    {solicitudes.filter((s) => s.estado === "rechazada")
-                      .length === 0 && (
-                      <Card>
-                        <CardContent className="p-6 text-center text-gray-500">
-                          No hay solicitudes rechazadas
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <p className="text-sm text-gray-600 font-medium mb-1">
+                                Motivación:
+                              </p>
+                              <p className="text-gray-700">
+                                {solicitud.mensaje}
+                              </p>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Modal de Confirmación para Aceptar */}
-              {modalAceptar && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                  <Card className="w-full max-w-md mx-4">
-                    <CardHeader>
-                      <CardTitle>Aceptar Solicitud</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-gray-600">
-                        ¿Deseas aceptar la solicitud de{" "}
-                        <strong>{solicitudSeleccionada?.nombre}</strong>?
-                      </p>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Comentario (opcional)
-                        </label>
-                        <textarea
-                          value={comentarioSolicitud}
-                          onChange={(e) =>
-                            setComentarioSolicitud(e.target.value)
-                          }
-                          placeholder="Agrega un comentario sobre la decisión..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          rows={4}
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setModalAceptar(false);
-                            setComentarioSolicitud("");
-                            setSolicitudSeleccionada(null);
-                          }}
-                          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleConfirmarAceptacion}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Confirmar
-                        </button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Modal de Confirmación para Rechazar */}
-              {modalRechazar && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                  <Card className="w-full max-w-md mx-4">
-                    <CardHeader>
-                      <CardTitle>Rechazar Solicitud</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-gray-600">
-                        ¿Deseas rechazar la solicitud de{" "}
-                        <strong>{solicitudSeleccionada?.nombre}</strong>?
-                      </p>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Comentario (opcional)
-                        </label>
-                        <textarea
-                          value={comentarioSolicitud}
-                          onChange={(e) =>
-                            setComentarioSolicitud(e.target.value)
-                          }
-                          placeholder="Agrega un comentario sobre la decisión..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          rows={4}
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setModalRechazar(false);
-                            setComentarioSolicitud("");
-                            setSolicitudSeleccionada(null);
-                          }}
-                          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleConfirmarRechazo}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                          Confirmar
-                        </button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    ))}
+                  {solicitudes.filter((s) => s.estado === "rechazada")
+                    .length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center text-gray-500">
+                        No hay solicitudes rechazadas
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
@@ -1105,7 +972,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-gray-900">Mis Tareas</h2>
 
-              {/* Agregar nueva tarea */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1176,7 +1042,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                 </CardContent>
               </Card>
 
-              {/* Lista de tareas */}
               <div className="space-y-4">
                 <h3 className="text-xl font-bold text-gray-900">Pendientes</h3>
                 {tareas
@@ -1184,13 +1049,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                   .map((tarea) => (
                     <Card
                       key={tarea.id}
-                      className={`hover:shadow-lg transition-shadow ${
-                        tarea.prioridad === "alta"
-                          ? "border-l-4 border-l-red-500"
-                          : tarea.prioridad === "media"
-                            ? "border-l-4 border-l-orange-500"
-                            : "border-l-4 border-l-blue-500"
-                      }`}
+                      className={`hover:shadow-lg transition-shadow ${tarea.prioridad === "alta" ? "border-l-4 border-l-red-500" : tarea.prioridad === "media" ? "border-l-4 border-l-orange-500" : "border-l-4 border-l-blue-500"}`}
                     >
                       <CardContent className="p-6">
                         <div className="flex items-start gap-4">
@@ -1199,11 +1058,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                             className="mt-1"
                           >
                             <div
-                              className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-                                tarea.estado === "completada"
-                                  ? "bg-green-500 border-green-500"
-                                  : "border-gray-300 hover:border-teal-500"
-                              }`}
+                              className={`w-6 h-6 rounded border-2 flex items-center justify-center ${tarea.estado === "completada" ? "bg-green-500 border-green-500" : "border-gray-300 hover:border-teal-500"}`}
                             >
                               {tarea.estado === "completada" && (
                                 <CheckSquare className="w-4 h-4 text-white" />
@@ -1216,13 +1071,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                                 {tarea.titulo}
                               </h3>
                               <span
-                                className={`px-2 py-1 rounded text-xs font-medium ${
-                                  tarea.prioridad === "alta"
-                                    ? "bg-red-100 text-red-700"
-                                    : tarea.prioridad === "media"
-                                      ? "bg-orange-100 text-orange-700"
-                                      : "bg-blue-100 text-blue-700"
-                                }`}
+                                className={`px-2 py-1 rounded text-xs font-medium ${tarea.prioridad === "alta" ? "bg-red-100 text-red-700" : tarea.prioridad === "media" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}
                               >
                                 {tarea.prioridad.toUpperCase()}
                               </span>
@@ -1236,11 +1085,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                                 {tarea.fecha}
                               </span>
                               <span
-                                className={`text-sm font-medium ${
-                                  tarea.estado === "en_progreso"
-                                    ? "text-blue-600"
-                                    : "text-gray-500"
-                                }`}
+                                className={`text-sm font-medium ${tarea.estado === "en_progreso" ? "text-blue-600" : "text-gray-500"}`}
                               >
                                 {tarea.estado === "en_progreso"
                                   ? "En Progreso"
@@ -1254,7 +1099,6 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
                   ))}
               </div>
 
-              {/* Tareas completadas */}
               {tareas.filter((t) => t.estado === "completada").length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-xl font-bold text-gray-900">
@@ -1292,7 +1136,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
           )}
         </main>
 
-        {/* Modal para comentario al aceptar */}
+        {/* Modal Aceptar */}
         {modalAceptar && (
           <div className="fixed inset-0 z-[200] bg-black bg-opacity-50 flex items-center justify-center">
             <Card className="w-full max-w-md">
@@ -1335,7 +1179,7 @@ export function MonitorPanel({ onClose }: MonitorPanelProps) {
           </div>
         )}
 
-        {/* Modal para comentario al rechazar */}
+        {/* Modal Rechazar */}
         {modalRechazar && (
           <div className="fixed inset-0 z-[200] bg-black bg-opacity-50 flex items-center justify-center">
             <Card className="w-full max-w-md">
